@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Авторизация</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Авторизация аккаунта ресторана</h2>
+    <form onsubmit="event.preventDefault(); authenticateRestaurant();">
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required>
+
+      <label for="password">Пароль:</label>
+      <input type="password" id="password" name="password" required>
+
+      <input type="submit" value="Войти">
+    </form>
+  </div>
+
+  <script>
+    window.onload = function() {
+      var token = localStorage.getItem('token');
+      if (token) {
+        console.log("Найден сохраненный JWT-токен:", token);
+      } else {
+        console.log("JWT-токен не найден в локальном хранилище.");
+      }
+    };
+
+    function authenticateRestaurant() {
+      var email = document.getElementById('email').value;
+      var password = document.getElementById('password').value;
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://losermaru.pythonanywhere.com/auth", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+
+      xhr.onreadystatechange = function() {
+  if (xhr.readyState === 4) {
+    if (xhr.status === 200) {
+      console.log("Ответ сервера при успешной авторизации:", xhr.responseText);
+      var response = JSON.parse(xhr.responseText);
+      var token = response.access_token; // Извлечение access_token из ответа
+      console.log("Получен JWT-токен:", token);
+      localStorage.setItem('token', token);
+      console.log("JWT-токен сохранен в локальном хранилище:", token);
+      window.location.href = "main.html";
+    } else {
+      alert("Ошибка авторизации. Проверьте введенные данные.");
+    }
+  }
+};
+
+      var data = JSON.stringify({ email: email, password: password });
+      xhr.send(data);
+    }
+  </script>
+</body>
+</html>

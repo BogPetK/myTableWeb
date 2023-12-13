@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Главный экран</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <h2>Бронирование столика</h2>
+    <form onsubmit="event.preventDefault(); makeReservation();">
+      <label for="day">День:</label>
+      <input type="date" id="day" name="day" required>
+
+      <label for="time">Время:</label>
+      <input type="time" id="time" name="time" required>
+
+      <label for="number">Номер столика:</label>
+      <input type="text" id="number" name="number" required>
+
+      <label for="name">Имя клиента:</label>
+      <input type="text" id="name" name="name" required>
+
+      <label for="price">Цена:</label>
+      <input type="number" id="price" name="price" required>
+
+      <input type="submit" value="Забронировать">
+    </form>
+
+    <h2>Список бронирований</h2>
+    <table id="reservationsList">
+      <thead>
+        <tr>
+          <th>День</th>
+          <th>Время</th>
+          <th>Номер столика</th>
+          <th>Имя клиента</th>
+          <th>Цена</th>
+        </tr>
+      </thead>
+      <tbody id="reservations"></tbody>
+    </table>
+  </div>
+
+  <div class="side-panel">
+    <h2>Запросы на бронирование</h2>
+    <table id="bookingRequestsTable">
+      <thead>
+        <tr>
+          <th>День</th>
+          <th>Время</th>
+          <th>Номер столика</th>
+          <th>Имя клиента</th>
+          <th>Цена</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="bookingRequests"></tbody>
+    </table>
+  </div>
+
+  <script>
+    var serverBaseUrl = 'https://losermaru.pythonanywhere.com/reservation';
+    var bookingRequestsData = [];
+
+    function createReservationItem(reservation) {
+      var row = document.createElement("tr");
+      var dayCell = document.createElement("td");
+      var timeCell = document.createElement("td");
+      var numberCell = document.createElement("td");
+      var nameCell = document.createElement("td");
+      var priceCell = document.createElement("td");
+
+      dayCell.textContent = reservation.day;
+      timeCell.textContent = reservation.time;
+      numberCell.textContent = reservation.number;
+      nameCell.textContent = reservation.name;
+      priceCell.textContent = reservation.price;
+
+      row.appendChild(dayCell);
+      row.appendChild(timeCell);
+      row.appendChild(numberCell);
+      row.appendChild(nameCell);
+      row.appendChild(priceCell);
+
+      return row;
+    }
+
+    function updateReservationsList(reservations) {
+      var reservationsTable = document.getElementById("reservations");
+      reservationsTable.innerHTML = "";
+
+      for (var i = 0; i < reservations.length; i++) {
+        var reservation = reservations[i];
+        var row = createReservationItem(reservation);
+        reservationsTable.appendChild(row);
+      }
+    }
+
+    function createBookingRequestItem(request) {
+      var row = document.createElement("tr");
+      var dayCell = document.createElement("td");
+      var timeCell = document.createElement("td");
+      var numberCell = document.createElement("td");
+      var nameCell = document.createElement("td");
+      var priceCell = document.createElement("td");
+      var actionsCell = document.createElement("td");
+      var approveButton = document.createElement("button");
+      var rejectButton = document.createElement("button");
+
+      dayCell.textContent = request.day;
+      timeCell.textContent = request.time;
+      numberCell.textContent = request.number;
+      nameCell.textContent = request.name;
+      priceCell.textContent = request.price;
+
+      approveButton.textContent = "Одобрить";
+      rejectButton.textContent = "Отказать";
+
+      approveButton.addEventListener("click", function () {
+        approveBooking(request.id); // Замените "Id" на "requestId"
+      });
+      rejectButton.addEventListener("click", function () {
+        rejectBooking(request.id);
+      });
+
+      actionsCell.appendChild(approveButton);
+      actionsCell.appendChild(rejectButton);
+
+      row.appendChild(dayCell);
+      row.appendChild(timeCell);
+      row.appendChild(numberCell);
+      row.appendChild(nameCell);
+      row.appendChild(priceCell);
+      row.appendChild(actionsCell);
+
+      return row;
+    }
+
+    function updateBookingRequests(requests) {
+      var bookingRequestsTable = document.getElementById("bookingRequests");
+      bookingRequestsTable.innerHTML = "";
+
+      for (var i = 0; i < requests.length; i++) {
+        var request = requests[i];
+        var row = createBookingRequestItem(request);
+        bookingRequestsTable.appendChild(row);
+      }
+    }
+
+    function fetchReservations() {
+      var token = localStorage.getItem('token'); // Получаем токен из локального хранилища
+      console.log("JWT-токен сохранен в локальном хранилище:", token);
+
+      var url = serverBaseUrl;
+      fetch(url, {
+        headers: {
+          'Authorization': 'Bearer ' + token // Передача токена в заголовке
+        }
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          var approvedReservations = data.filter(function (reservation) {
+            return reservation.status === 'approved'; // Фильтрация по статусу 'approved'
+          });
+          updateReservationsList(approvedReservations);
+        })
+        .catch(function (error) {
+          console.log('Error fetching reservations:', error);
+        });
+    }
+
+    function fetchBookingRequests() {
+      var token = localStorage.getItem('token');
+      var url = serverBaseUrl;
+      fetch(url, {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          var waitingBookingRequests = data.filter(function (request) {
+            return request.status === 'waiting'; // Фильтрация по статусу 'waiting'
+          });
+          bookingRequestsData = waitingBookingRequests;
+          updateBookingRequests(bookingRequestsData);
+        })
+        .catch(function (error) {
+          console.log('Error fetching booking requests:', error);
+        });
+    }
+
+    function getRestaurantId() {
+      // Получаем токен из локального хранилища
+      var token = localStorage.getItem('token');
+
+      // Если токен есть, продолжаем обработку
+      if (token) {
+        // Разбиваем токен по точкам, чтобы получить его части: заголовок, полезную нагрузку и подпись
+        var tokenParts = token.split('.');
+        var tokenPayload = tokenParts[1]; // Получаем полезную нагрузку (часть после второй точки)
+
+        // Декодируем Base64 закодированную часть, содержащую полезную нагрузку токена
+        var decodedPayload = atob(tokenPayload);
+
+        // Преобразуем декодированную JSON-строку в объект JavaScript
+        var tokenData = JSON.parse(decodedPayload);
+
+        // Проверяем наличие restoran_id в объекте данных токена
+        if (tokenData.restoran_id) {
+          // Если restoran_id есть, сохраняем его в локальную переменную
+          var restoranId = tokenData.restoran_id;
+
+          // Используем restoranId по вашему усмотрению
+          console.log('restoran_id из токена:', restoranId);
+        } else {
+          console.log('restoran_id не найден в токене.');
+        }
+      } else {
+        console.log('Токен не найден в локальном хранилище.');
+      }
+    }
+
+    window.onload = function () {
+      fetchReservations();
+      fetchBookingRequests();
+      //getRestaurantId();
+    };
+
+    function makeReservation() {
+      var token = localStorage.getItem('token');
+      var day = document.getElementById('day').value;
+      var time = document.getElementById('time').value;
+      var number = document.getElementById('number').value;
+      var name = document.getElementById('name').value;
+      var price = document.getElementById('price').value;
+
+      if (!number.startsWith("Столик")) {
+        number = "Столик " + number;
+      }
+
+      var reservationData = {
+        day: day,
+        time: time,
+        number: number,
+        name: name,
+        price: price
+      };
+
+      var url = "https://losermaru.pythonanywhere.com/reservation";
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(reservationData)
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          console.log('Reservation created:', data);
+          fetchReservations();
+        })
+        .catch(function (error) {
+          console.log('Error creating reservation:', error);
+        });
+
+      document.getElementById('day').value = "";
+      document.getElementById('time').value = "";
+      document.getElementById('number').value = "";
+      document.getElementById('name').value = "";
+      document.getElementById('price').value = "";
+    }
+
+    function approveBooking(requestId) {
+      var token = localStorage.getItem('token');
+      var url = "https://losermaru.pythonanywhere.com/reservation/" + requestId;
+
+      // Получение данных запроса на бронирование
+      var requestData = bookingRequestsData.find(function (request) {
+        return request.id === requestId;
+      });
+
+      // Изменение значения поля "status" на "true"
+      console.log(requestData);
+      requestData.status = 'approved';
+
+      fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(requestData)
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          console.log('Booking request approved:', data);
+          fetchBookingRequests();
+          fetchReservations();
+        })
+        .catch(function (error) {
+          console.log('Error approving booking request:', error);
+        });
+    }
+
+    function rejectBooking(requestId) {
+      var token = localStorage.getItem('token');
+      var url = "https://losermaru.pythonanywhere.com/reservation/" + requestId;
+
+      // Получение данных запроса на бронирование
+      var requestData = bookingRequestsData.find(function (request) {
+        return request.id === requestId;
+      });
+
+      // Изменение значения поля "status" на "true"
+      console.log(requestData);
+      requestData.status = 'rejected';
+
+      fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(requestData)
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          console.log('Booking request approved:', data);
+          fetchBookingRequests();
+          fetchReservations();
+        })
+        .catch(function (error) {
+          console.log('Error approving booking request:', error);
+        });
+    }
+
+    /*   function rejectBooking(requestId) {
+          var token = localStorage.getItem('token');
+          var url = "https://losermaru.pythonanywhere.com/reservation/" + requestId;
+          fetch(url, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': 'Bearer ' + token
+              },
+            })
+            .then(function(response) {
+              return response.json();
+            })
+            .then(function(data) {
+              console.log('Booking request rejected:', data);
+              fetchBookingRequests();
+            })
+            .catch(function(error) {
+              console.log('Error rejecting booking request:', error);
+            });
+        }
+    */
+    fetchReservations();
+    fetchBookingRequests();
+  </script>
+</body>
+
+</html>

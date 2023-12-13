@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Регистрация</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Регистрация аккаунта ресторана</h2>
+    <form onsubmit="return registerUser();">
+
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" value="string@gmail.com" required>
+
+      <label for="password">Пароль:</label>
+      <input type="password" id="password" name="password" required>
+
+      <input type="hidden" id="role" name="role" value="restaurant">
+
+      <label for="confirm_password">Повторите пароль:</label>
+      <input type="password" id="confirm_password" name="confirm_password" required>
+
+      <input type="submit" value="Зарегистрироваться">
+    </form>
+  </div>
+
+  <script>
+    function registerUser() {
+      var email = document.getElementById('email').value;
+      var password = document.getElementById('password').value;
+      var confirm_password = document.getElementById('confirm_password').value;
+      var role = document.getElementById('role').value;
+
+      if (password !== confirm_password) {
+        alert("Пароли не совпадают");
+        return false;
+      }
+
+      var userData = {
+        email: email,
+        password: password,
+        confirm_password: confirm_password,
+        role: role
+      };
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://losermaru.pythonanywhere.com/user", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+
+      xhr.onload = function() {
+        console.log(xhr.responseText); // Вывод полного текста ответа для отладки
+
+        if (xhr.status === 200) {
+          // Регистрация успешна
+          window.location.href = "login.html"; // Перенаправление на страницу после успешной регистрации
+        } else if (xhr.status === 400) {
+          // Некорректный запрос
+          var errorResponse = JSON.parse(xhr.responseText);
+          var errorCode = xhr.status;
+          var errorMessage = errorResponse.message;
+          alert("Ошибка регистрации: " + errorMessage + " (Код ошибки: " + errorCode + ")");
+        } else {
+          // Другие ошибки
+          alert("Ошибка регистрации. Попробуйте ещё раз.");
+        }
+      };
+
+      xhr.onerror = function() {
+        // Ошибка сети или запроса
+        alert("Ошибка сети или запроса. Попробуйте ещё раз.");
+      };
+
+      var data = JSON.stringify(userData);
+      xhr.send(data);
+
+      return false;
+    }
+  </script>
+</body>
+</html>
